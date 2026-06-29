@@ -17,6 +17,10 @@ application that turns those forecasts into auditable `ORDER NOW` / `WATCH` /
 
 ## Screenshots
 
+A short walkthrough — dashboard, per-SKU forecast model selection, promotions, settings, and dark mode:
+
+![Walkthrough](docs/screenshots/walkthrough.gif)
+
 **Forecast Reports** — multi-criteria model selection per SKU (SARIMAX, LightGBM, Holt-Winters, …), each with 95% prediction intervals, empirical coverage vs. target, and the full selection rationale.
 
 ![Forecast Reports](docs/screenshots/reports.png)
