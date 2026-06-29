@@ -1,0 +1,12 @@
+sku_id,sku_name,category,expected_lead_time_days,actual_lead_time_days,minimum_order_quantity,unit_cost,selling_price
+M001,Pro Match Football Boots,equipment,60,68,50,45.0,89.99
+M002,Classic Leather Boots,equipment,75,82,50,35.0,69.99
+M003,Indoor Futsal Boots,equipment,45,52,30,28.0,54.99
+A001,Grip Socks (5-Pair Pack),accessory,21,24,100,8.5,19.99
+A002,Boot Cleaning Brush,accessory,14,16,200,2.5,7.99
+A003,Ball Pump Needle Set,accessory,18,20,150,5.0,12.99
+A004,Boot Bag,accessory,25,28,100,12.0,24.99
+A005,Boot Cleaning Spray (200ml),accessory,21,23,80,6.5,14.99
+A006,Leather Conditioner (50ml),accessory,18,21,150,4.0,9.99
+B001,Starter Bundle (Boots + Socks),bundle,35,39,20,55.0,109.99
+B002,Premium Care Bundle (Boots + All Accessories),bundle,40,45,15,85.0,159.99

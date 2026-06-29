@@ -1,0 +1,131 @@
+# forecasting_config.yaml — Single source of truth for all pipeline parameters.
+# No magic numbers should appear in any .py file. All tunable values live here.
+
+problem:
+  target:             quantity_sold
+  timestamp_column:   sale_date
+  forecast_horizon:   30           # days ahead
+  frequency:          D            # daily
+  non_negative:       true
+
+# ── Walk-forward cross-validation ──────────────────────────────────────────────
+validation:
+  cv_folds:                  5
+  min_cv_folds:              3
+  validation_window_days:    30
+  min_training_window_days:  90    # absolute floor across all categories
+  holdout_days:              30    # final hold-out untouched by any fold
+
+# ── Baseline models ─────────────────────────────────────────────────────────────
+baselines:
+  moving_average_windows:       [7, 14, 30]
+  weighted_average_weights:     [0.6, 0.3, 0.1]   # current-year, last-year, 2-years-ago
+
+# ── Feature engineering ─────────────────────────────────────────────────────────
+features:
+  lag_days:       [1, 2, 3, 7, 14, 30, 365]
+  rolling_windows: [7, 14, 30]
+  ewm_span:       7
+  # days_until_next_promotion cap (use 999 when none within this window)
+  promo_lookahead_cap_days: 60
+
+# ── Model-specific parameters ───────────────────────────────────────────────────
+models:
+  min_history_lgbm_days: 180     # LightGBM skipped below this threshold
+
+  holt_winters:
+    seasonal_period:      7
+    smoothing_level_grid: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    smoothing_trend_grid: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+    smoothing_seasonal_grid: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    tuning_improvement_threshold_pct: 5.0  # skip tuning if gain < 5%
+
+  sarimax:
+    max_p: 3
+    max_q: 3
+    max_P: 1
+    max_Q: 1
+    m:    7        # seasonal period for auto_arima
+
+  lightgbm:
+    max_tuning_trials: 50
+    num_leaves_grid:         [15, 31, 63, 127]
+    learning_rate_grid:      [0.01, 0.05, 0.1, 0.3]
+    n_estimators_grid:       [50, 100, 200, 500]
+    min_child_samples_grid:  [5, 10, 20]
+    feature_fraction_grid:   [0.6, 0.8, 1.0]
+
+  prophet:
+    changepoint_prior_scale_grid:  [0.001, 0.01, 0.1, 0.5]
+    seasonality_prior_scale_grid:  [0.01, 0.1, 1.0, 10.0]
+    holidays_prior_scale_grid:     [0.01, 0.1, 1.0, 10.0]
+    tuning_improvement_threshold_pct: 5.0
+
+# ── Prediction intervals ────────────────────────────────────────────────────────
+intervals:
+  confidence_level:          0.95
+  bootstrap_samples:         500
+  min_acceptable_coverage:   0.80
+  correction_factor:         1.3    # multiply half-width when coverage < min
+
+# ── Evaluation ──────────────────────────────────────────────────────────────────
+evaluation:
+  residual_acf_lags:          14
+  residual_acf_significance:  0.05
+  rmse_mae_ratio_warning:     2.0   # warn when RMSE > 2× MAE
+  simplicity_threshold_pct:   5.0   # within 5% CV MAE → prefer simpler model
+  # Baseline gate: candidates whose CV MAE is within this % of the best
+  # baseline stay eligible. Strict `cv_mae < best_baseline_mae` rejects
+  # statistically-tied models on noisy data (<1% differences), leaving
+  # ets_fallback auto-assigned even when a real candidate has materially
+  # lower TEST MAE. 10% preserves the "don't use ML when baselines work"
+  # intent while letting Gate 2 (test MAE ranking) decide true ties.
+  baseline_tolerance_pct:     10.0
+  max_runtime_sec_warning:    30
+  # Sanity ceiling: if the winning model's sMAPE exceeds this, emit a loud
+  # warning on the output. Catches the class of silent regressions where the
+  # pipeline "succeeds" but produces unusable numbers (the 100% WMAPE bugs
+  # we fixed in 2026-04 would all have been caught here).
+  wmape_sanity_ceiling_pct:   80.0
+
+# ── Audit / preprocessing ───────────────────────────────────────────────────────
+audit:
+  outlier_sigma_threshold:    4.0   # flag if |x - mean| > N * std
+  outlier_cap_sigma:          3.0   # cap uncapped outliers at mean + N * std
+  # "reporting_gap": consecutive missing days above this threshold suggest data dropout
+  reporting_gap_consecutive_days: 7
+  # Trailing-zero run: if the series ends with N consecutive zero-quantity
+  # days, emit a warning. Depresses level/seasonal estimates in HW/SES and
+  # is almost always a data issue (stopped-selling SKU or a stale feed) —
+  # not a signal the model should learn from.
+  max_trailing_zero_run_days: 3
+
+  # Stale-feed warning thresholds. Adaptive per-SKU: derive the "unusual gap"
+  # threshold from the SKU's own historical inter-arrival distribution, fall
+  # back to a fixed default when there's not enough data. Two tiers:
+  #   stale_feed          — staleness above the SKU's adaptive threshold.
+  #                         "This SKU is stale relative to its own pattern."
+  #   stale_feed_critical — staleness above the global ceiling. Almost
+  #                         certainly a broken connector or genuinely
+  #                         stopped SKU. Loud alarm.
+  stale_feed:
+    statistic:           "p95"   # 95th percentile of historical inter-arrival gaps
+    history_window_days: 180     # only look at gaps from this trailing window
+    # min_samples: minimum number of inter-arrival gaps before we trust the
+    # adaptive threshold. 5 covers bi-weekly + monthly sellers (which have
+    # ~12 + ~5 gaps in 180d). Setting this higher (e.g. 15) excludes
+    # everything slower than weekly from adaptive — the slowest movers
+    # would always hit the wrong fallback. Tradeoff: with N=5 the percentile
+    # estimate is noisy; with N<5 it's effectively the max, which biases the
+    # threshold upward (under-alerting). 5 is the practical compromise.
+    min_samples:         5
+    fallback_days:       7       # used when min_samples isn't met
+    floor_days:          3       # threshold never below this (avoids alarm fatigue on daily sellers)
+    ceiling_days:        60      # threshold never above this (above = stale_feed_critical)
+
+# ── Monitoring ──────────────────────────────────────────────────────────────────
+monitoring:
+  distribution_shift_mean_threshold:  0.25   # 25% shift in mean
+  distribution_shift_std_threshold:   0.40   # 40% shift in std
+  bias_drift_window_days:             30
+  model_staleness_days:               60
