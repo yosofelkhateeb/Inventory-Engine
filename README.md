@@ -15,6 +15,26 @@ application that turns those forecasts into auditable `ORDER NOW` / `WATCH` /
 
 ---
 
+## Screenshots
+
+**Forecast Reports** — multi-criteria model selection per SKU (SARIMAX, LightGBM, Holt-Winters, …), each with 95% prediction intervals, empirical coverage vs. target, and the full selection rationale.
+
+![Forecast Reports](docs/screenshots/reports.png)
+
+**Dashboard** — `ORDER NOW` / `WATCH` / `HOLD` recommendations with urgency, days of cover, lead time, and dead-stock alerts.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+**SKU detail** — the full reorder calculation for one SKU: effective position, lead time, buffer, safety stock, reorder point, and recommended quantity.
+
+![SKU detail](docs/screenshots/sku-detail.png)
+
+**Forecast settings** — every threshold is configurable per category (Equipment / Accessories / Bundles), plus the feedback-loop and decision-calibration levers.
+
+![Forecast settings](docs/screenshots/settings.png)
+
+---
+
 ## What it does
 
 Most small/mid e‑commerce operators replenish stock from gut feel and a

@@ -40,3 +40,6 @@ python/forecasting/reports/
 # Loose local exports / working artifacts (not part of the source)
 *.zip
 *.docx
+
+# Raw screenshot staging (curated shots live in docs/screenshots/)
+/screenshots/
