@@ -19,7 +19,7 @@ Read the relevant doc before touching a concern. All docs live in `docs/`.
 | `docs/TODO_PRE_PRODUCTION.md` | Deferred work: failure UX, backup, scale testing, security final pass. Check triggers before tackling items here. |
 | `docs/GLOSSARY.md` | Reference for every user-facing metric and label. Mirrors `resources/js/composables/useGlossary.ts` — if you change a definition in one, change it in the other. |
 
-**Outdated / to delete:** `architecture_decision_guide.md` (pre-Laravel stack comparison, no longer relevant). `docs/STACK_DECISION.md` and `docs/FORECASTING_PIPELINE.md` are not part of the current docs set — if they exist in the repo, they should be removed.
+Historical design docs live in `docs/plans/`. `docs/PARTNER_REVIEW_RESPONSE_2026-05.md` is a point-by-point log of the May 2026 partner review — read it for the reasoning behind recent feature work, not for current behaviour.
 
 ---
 
