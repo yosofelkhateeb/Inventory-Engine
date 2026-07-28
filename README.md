@@ -62,6 +62,11 @@ platform** — it does not raise POs, message suppliers, or handle invoicing. Th
 operator keeps ordering through their existing channels and records the outcome,
 which is what makes the feedback loop possible.
 
+The domain terms used throughout this README and the UI — ABC/XYZ, days of
+cover, buffer, WMAPE, the recommendation tiers — are each defined in
+[`docs/GLOSSARY.md`](docs/GLOSSARY.md), which mirrors the in‑app glossary panel
+and the `?` tooltips.
+
 ---
 
 ## Modeling decisions worth highlighting
@@ -221,6 +226,7 @@ database/
   seeders/data/sea_sku_catalog.php   the 30-SKU demo catalog
 Synthetic dataset/             standalone CSV sample dataset (football gear)
 docs/                          architecture, engine, forecasting, ingestion docs
+  GLOSSARY.md                  every user-facing metric and label, defined
 ```
 
 ---

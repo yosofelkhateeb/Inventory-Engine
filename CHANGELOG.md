@@ -1,3 +1,22 @@
+## 2026-07-28 (Portfolio publication — README and reference docs)
+
+Documentation pass for the public portfolio repo. No application code changed.
+
+- `docs/GLOSSARY.md` — every user-facing metric and label in one reference,
+  grouped by area (ABC/XYZ classification, recommendations and urgency,
+  inventory position, forecasting metrics). It is a 1:1 extraction of
+  `resources/js/composables/useGlossary.ts`, which drives both the in-app
+  glossary panel in `AppHeader.vue` and the `?` tooltips in `GlossaryTip.vue`.
+  All 36 entries verified term-for-term and definition-for-definition against
+  the composable. The two files are now duplicated by design — a note in the
+  CLAUDE.md documentation index flags that a change to one requires a change
+  to the other.
+- README links the glossary from the "What it does" section and the
+  repository layout listing.
+- README screenshots section — dashboard (light and dark), forecast reports,
+  SKU detail, and forecast settings, plus an animated walkthrough GIF.
+  (Committed in 88f33ae and af636da; recorded here retroactively.)
+
 ## 2026-06-06 (Fly.io demo deploy — Phase A + B hosted artifact)
 
 The partner-share tunnel (Cloudflare Quick Tunnel) was retired in favour of
