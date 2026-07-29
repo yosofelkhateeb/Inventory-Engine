@@ -1,3 +1,21 @@
+## 2026-07-29 (Portfolio visuals — screenshot gallery)
+
+- `docs/SCREENSHOTS.md` — full gallery of 13 screenshots grouped by workflow
+  (daily operation, per-SKU depth, forecasting, promotion planning,
+  configuration and data, reference, dark mode), one caption each.
+- `docs/screenshots/` refreshed with the 28 July capture run, renamed from
+  ordinal filenames (`02-dashboard.png`) to descriptive ones
+  (`dashboard.png`, `promotion-uplift-prediction.png`, …). The four
+  superseded 29 June stills were retired; the dark-mode shot was replaced
+  with the current-quality capture.
+- Glossary reference card regenerated. The previous image claimed "34 terms"
+  while rendering 36 — corrected and re-rendered at 2x scale for the
+  carousel.
+- README screenshots section reworked to four heroes (dashboard, forecast
+  reports, promotion uplift, status actions) plus a link to the full gallery,
+  replacing the previous four stills. Two of the old links
+  (`reports.png`, `settings.png`) pointed at files retired in this change.
+
 ## 2026-07-28 (Portfolio publication — README and reference docs)
 
 Documentation pass for the public portfolio repo. No application code changed.

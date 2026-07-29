@@ -21,21 +21,23 @@ A short walkthrough — dashboard, per-SKU forecast model selection, promotions,
 
 ![Walkthrough](docs/screenshots/walkthrough.gif)
 
-**Forecast Reports** — multi-criteria model selection per SKU (SARIMAX, LightGBM, Holt-Winters, …), each with 95% prediction intervals, empirical coverage vs. target, and the full selection rationale.
-
-![Forecast Reports](docs/screenshots/reports.png)
-
 **Dashboard** — `ORDER NOW` / `WATCH` / `HOLD` recommendations with urgency, days of cover, lead time, and dead-stock alerts.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
-**SKU detail** — the full reorder calculation for one SKU: effective position, lead time, buffer, safety stock, reorder point, and recommended quantity.
+**Forecast Reports** — multi‑criteria model selection per SKU, each with 95% prediction intervals, empirical coverage against target, and the full selection rationale in prose.
 
-![SKU detail](docs/screenshots/sku-detail.png)
+![Forecast Reports](docs/screenshots/forecast-reports.png)
 
-**Forecast settings** — every threshold is configurable per category (Equipment / Accessories / Bundles), plus the feedback-loop and decision-calibration levers.
+**Predicted promotion uplift** — describe a campaign you are considering (discount, channel mix, ad spend, audience, lead time) and the system predicts the sales uplift with a range, stating whether the basis is similar past campaigns or a trained model.
 
-![Forecast settings](docs/screenshots/settings.png)
+![Predicted promotion uplift](docs/screenshots/promotion-uplift-prediction.png)
+
+**Acting on a recommendation** — validated status transitions with a full audit trail, which is what closes the feedback loop back into forecasting.
+
+![Recommendation status actions](docs/screenshots/recommendation-status-actions.png)
+
+📸 **[Full screenshot gallery →](docs/SCREENSHOTS.md)** — SKU catalogue, forecast model detail, promotional calendar, ingestion, settings, glossary, and dark mode.
 
 ---
 
