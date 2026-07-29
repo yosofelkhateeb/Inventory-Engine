@@ -1,3 +1,26 @@
+## 2026-07-29 (Forecast sweep, screenshot refresh, date-bomb test fix)
+
+- Fixed `SeaDatasetSeederTest` "mega 11.11 day" test, which had been failing
+  since 2026-07-05. `SeaDatasetSeeder` anchors its window to `Carbon::today()`,
+  but the test asserted on the fixed date 2024-11-11 with a 600-day window —
+  so once the wall clock passed 2026-07-04 the window no longer covered that
+  date and the row was simply absent. The clock is now frozen for that test,
+  making the seeded window deterministic. Full suite: 267 passing, 0 failing
+  (2332 assertions).
+- Ran a full 30-SKU forecast sweep. The registry previously held only 3 of 30
+  SKUs because the default `FORECAST_PROCESS_TIMEOUT` of 600s is below what
+  this hardware needs — most SKUs take 8-32 minutes, and SARIMAX alone
+  accounts for 50-80% of each run (`auto_arima` re-selects order on every CV
+  fold: 5 folds + holdout + final fit). The timeout path in `RunForecastJob`
+  throws before reaching the structured error logging, so those 27 failures
+  were silent. Swept with a raised timeout via process env only — no
+  committed config or `.env` was changed. Registry now 30/30, four distinct
+  winning models (sarimax 12, holt_winters 11, ets_fallback 5, lightgbm 2).
+- Re-ran the inventory engine on the new demand rates and re-shot the eight
+  affected screenshots so the gallery is internally consistent. The Reports
+  table goes from 3 rows to 30, and the Confidence column on the
+  recommendation queue is now populated rather than empty.
+
 ## 2026-07-29 (Portfolio visuals — screenshot gallery)
 
 - `docs/SCREENSHOTS.md` — full gallery of 13 screenshots grouped by workflow
