@@ -94,8 +94,15 @@ it('is deterministic — same seed produces identical SKU + supplier + row count
 });
 
 it('applies SEA seasonal multipliers — mega 11.11 day spikes well above the SKU median', function () {
-    // Use a window that comfortably covers 2024-11-11 (mega anchor 3.0×).
-    // Today (2026-05-13) - 600d = 2024-09-19, so windowDays=600 includes Nov 11 2024.
+    // SeaDatasetSeeder anchors its window to "today" (end = yesterday,
+    // start = end - windowDays). Freeze the clock so the window is
+    // deterministic: without this the test quietly stops covering
+    // 2024-11-11 once the wall clock passes 2026-07-04, and then fails
+    // for good. Laravel resets setTestNow() in tearDown.
+    Carbon::setTestNow('2026-05-13');
+
+    // Frozen today (2026-05-13) - 600d = 2024-09-19, so windowDays=600
+    // covers 2024-11-11 (mega anchor 3.0×).
     (new SeaDatasetSeeder(seed: 42, windowDays: 600))->seed();
 
     // Pick a high-volume "clean" SKU so the multiplier effect is visible above noise.
