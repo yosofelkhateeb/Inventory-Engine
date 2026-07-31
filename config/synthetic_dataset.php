@@ -109,4 +109,23 @@ return [
             'other'     => [8, 25],
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Demo Feed Top-Up
+    |--------------------------------------------------------------------------
+    | SeaDatasetSeeder writes a window ending yesterday *at seed time*, so a
+    | hosted demo ages one day per day: Portfolio WMAPE stops computing and
+    | the stale-feed banner fires on every SKU.
+    |
+    | When enabled, `demo:topup-sales` appends the elapsed days nightly using
+    | the same order factory and demand shaping as the original seed. It only
+    | ever writes synthetic *input* rows — no forecast or metric is fabricated.
+    |
+    | OFF by default. This must never run against a real tenant's data.
+    */
+    'feed_topup' => [
+        'enabled' => env('DEMO_FEED_TOPUP_ENABLED', false),
+        'at'      => env('DEMO_FEED_TOPUP_AT', '02:00'),
+    ],
 ];

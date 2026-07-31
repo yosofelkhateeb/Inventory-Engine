@@ -181,6 +181,24 @@ The project flows through three sequential phases. Everything in this file gates
 
 ---
 
+## 9. Forecast Pipeline Performance
+
+**Trigger:** before any client with a real catalogue runs a scheduled sweep. This is a functional blocker, not polish — at current speeds a 30-SKU sweep takes ~5 hours and most SKUs exceed the shipped process timeout.
+
+**Current state:** measured 2026-07-29 on a 4-core laptop. SKUs take 8–32 minutes each; SARIMAX accounts for 50–80% of every run because `auto_arima` re-selects the model order on all 5 CV folds plus holdout plus final fit (~7 full order searches per SKU). The default `FORECAST_PROCESS_TIMEOUT` of 600s is below what that needs, and the timeout path in `RunForecastJob` throws before reaching its structured error logging — so failures leave no log line, no registry row, and no marker on the SKU. 27 of 30 SKUs were failing invisibly.
+
+**Scope when addressed:** see the full evidence-backed plan in [`plans/2026-07-31-forecast-performance-optimisation.md`](plans/2026-07-31-forecast-performance-optimisation.md). Summary:
+- Make timeout failures visible (overlaps §1 Failure UX — the per-SKU "forecast stale" flag)
+- Cache the ARIMA order across CV folds — select on the earliest fold only, refit coefficients per fold. ~5-7x, no leakage
+- Per-candidate time budgets so a slow model degrades gracefully instead of killing the whole SKU
+- Skip seasonal order search where the classifier found no seasonality
+- Size `forecasting` queue worker concurrency (the pipeline is single-threaded; sweep throughput scales near-linearly)
+- Re-size the timeout default from measurements *after* the above, and document the hardware assumption
+
+**Out of scope:** dropping models from the candidate shortlist. The shortlist already averages ~2 candidates, and SARIMAX — the expensive one — wins 12 of 30 SKUs. The plan documents why this and two other tempting shortcuts were rejected.
+
+---
+
 ## Items Not on This List
 
 If you think of something that should be deferred and tracked, add it here. The list is deliberately terse — a single-line "we should think about X" is better than nothing and better than a multi-paragraph speculative design.

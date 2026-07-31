@@ -1,3 +1,41 @@
+## 2026-07-31 (Demo feed top-up + forecast performance analysis)
+
+**Demo feed shelf life.** `SeaDatasetSeeder` writes a window ending yesterday
+*at seed time*, so a hosted demo ages one day per day: Portfolio WMAPE stops
+computing and the stale-feed banner fires on every SKU.
+
+- New `demo:topup-sales` command + `SeaDemoFeedTopUp` service. Appends the days
+  elapsed since the feed's frontier using the same order factory and demand
+  shaping as the original seed. Writes synthetic *input* rows only — no
+  forecast, recommendation, or metric is ever fabricated.
+- Anchors on the dataset-wide newest sale date, not each SKU's own last sale.
+  Per-SKU anchoring would read a sparse SKU's legitimate multi-week gap as
+  "days missing" and backfill it, eroding the intermittency that puts those
+  SKUs in Croston territory.
+- `stopped_selling` SKUs are deliberately frozen. `ShopifyOrderFactory`'s
+  stopped-selling series is window-relative — it sells for ~60% of whatever
+  window it is given — so topping one up over a short recent window would
+  resurrect a deliberately dead SKU and destroy the dead-stock signal.
+- OFF by default (`DEMO_FEED_TOPUP_ENABLED`), scheduled nightly at 02:00 when
+  enabled, ahead of the 03:00 sweep. The command refuses to run without the
+  flag unless `--force` is passed.
+- Extracted `SeaDemandMultipliers` so the seeder and the top-up shape demand
+  identically; divergence would put a structural break in the series at the
+  join. 7 new tests.
+- Applied to the demo dataset: 28 SKUs topped up, 730 rows, 2 correctly frozen.
+  Stale-feed banner went from 30 SKUs to 4 (the 2 dead SKUs plus 2 legitimately
+  quiet sparse ones) and Portfolio WMAPE now computes at 30.3% instead of N/A.
+
+**Forecast performance analysis (no pipeline code changed).** Documented in
+`docs/plans/2026-07-31-forecast-performance-optimisation.md`, with a pointer
+from `TODO_PRE_PRODUCTION.md` §9. Measured evidence: SARIMAX is 50-80% of every
+SKU's runtime because `auto_arima` re-selects the model order on all 5 CV folds
+plus holdout plus final fit. The candidate shortlist is already only 2-3 models,
+so there is no "runs 6 models" waste to cut, and SARIMAX wins 12 of 30 SKUs —
+dropping it would trade accuracy for speed on 40% of the catalogue. The plan
+records the fixes worth making and, explicitly, three tempting shortcuts that
+were rejected and why.
+
 ## 2026-07-29 (Forecast sweep, screenshot refresh, date-bomb test fix)
 
 - Fixed `SeaDatasetSeederTest` "mega 11.11 day" test, which had been failing

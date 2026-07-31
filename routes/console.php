@@ -56,6 +56,16 @@ Schedule::command('ingestion:cleanup-uploads')
     ->daily()
     ->name('daily-ingestion-cleanup');
 
+// Demo-only: keeps the hosted synthetic feed current so the dataset does not
+// age one day per day. Gated on config rather than registered conditionally so
+// `schedule:list` shows it, and inert unless DEMO_FEED_TOPUP_ENABLED is set.
+// Runs before the 03:00 sweep so a top-up night re-forecasts on fresh data.
+Schedule::command('demo:topup-sales')
+    ->dailyAt((string) config('synthetic_dataset.feed_topup.at', '02:00'))
+    ->when(fn () => (bool) config('synthetic_dataset.feed_topup.enabled'))
+    ->name('daily-demo-feed-topup')
+    ->withoutOverlapping();
+
 Schedule::call(function () {
     IngestionCredential::withoutGlobalScopes()
         ->where('source', 'shopify')

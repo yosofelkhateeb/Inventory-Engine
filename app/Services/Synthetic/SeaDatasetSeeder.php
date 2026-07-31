@@ -50,8 +50,7 @@ class SeaDatasetSeeder
 {
     private readonly array $catalog;
     private readonly SeaSeasonalCalendar $calendar;
-    /** @var array<int, float> Mon=0 … Sun=6 */
-    private readonly array $dowMultipliers;
+    private readonly SeaDemandMultipliers $multipliers;
 
     public function __construct(
         private readonly int $seed = 42,
@@ -60,9 +59,9 @@ class SeaDatasetSeeder
         ?array $catalog = null,
         ?SeaSeasonalCalendar $calendar = null,
     ) {
-        $this->catalog        = $catalog ?? require base_path('database/seeders/data/sea_sku_catalog.php');
-        $this->calendar       = $calendar ?? new SeaSeasonalCalendar;
-        $this->dowMultipliers = config('synthetic_dataset.day_of_week_multipliers', [1.0, 1.0, 1.05, 1.05, 1.1, 1.25, 1.15]);
+        $this->catalog     = $catalog ?? require base_path('database/seeders/data/sea_sku_catalog.php');
+        $this->calendar    = $calendar ?? new SeaSeasonalCalendar;
+        $this->multipliers = new SeaDemandMultipliers($this->calendar);
     }
 
     /**
@@ -189,10 +188,8 @@ class SeaDatasetSeeder
 
             $inserts = [];
             foreach ($rows as $r) {
-                $date     = Carbon::parse($r['sale_date']);
-                $seasonal = $this->calendar->multiplierFor($date);
-                $dow      = $this->dowMultipliers[$date->dayOfWeekIso - 1] ?? 1.0;
-                $qty      = max(0, (int) round($r['quantity_sold'] * $seasonal * $dow));
+                $date = Carbon::parse($r['sale_date']);
+                $qty  = $this->multipliers->apply((float) $r['quantity_sold'], $date);
 
                 if ($qty === 0) {
                     continue;
