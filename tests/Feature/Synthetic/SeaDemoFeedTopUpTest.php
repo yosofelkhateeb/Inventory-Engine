@@ -68,6 +68,70 @@ it('leaves stopped_selling SKUs frozen so the dead-stock signal survives', funct
         ->and($lastAfter)->toBe($lastBefore, 'a stopped-selling SKU must not be resurrected');
 });
 
+it('does not inflate promo density on promo_spike SKUs in a short window', function () {
+    // ShopifyOrderFactory places three fixed 5-day promo blocks at 25/50/75%
+    // of any window. Over the 913-day seed that is 1.6% of days; over a short
+    // top-up window the same 15 days would be ~half of it, and over a nightly
+    // 1-day window every day. That tail is a structural break that pushes
+    // model selection onto the baseline, so the top-up generates base demand.
+    seedThenAdvance(60, '2026-05-13', '2026-06-14'); // ~32-day gap to fill
+
+    $spiky = Sku::where('sku_code', 'SEA-BND-001')->first(); // promo_spike
+
+    (new SeaDemoFeedTopUp(seed: 42))->run();
+
+    $toppedUp = SalesHistory::where('sku_id', $spiky->id)
+        ->where('sale_date', '>', '2026-05-12')
+        ->get();
+
+    expect($toppedUp)->not->toBeEmpty();
+
+    $promoDays = $toppedUp->where('is_promotion', true)->count();
+
+    expect($promoDays)->toBe(
+        0,
+        "topped-up days must carry no synthetic promo spikes (got {$promoDays} of {$toppedUp->count()})",
+    );
+});
+
+it('keeps the demand level continuous across the top-up join', function () {
+    // A level shift at the join reads as a structural break to the
+    // forecasting pipeline — the artefact this whole feature exists to avoid.
+    seedThenAdvance(120, '2026-05-13', '2026-06-14');
+
+    $clean = Sku::where('sku_code', 'SEA-BOO-001')->first(); // clean pathology
+
+    $preMean = SalesHistory::where('sku_id', $clean->id)
+        ->whereBetween('sale_date', ['2026-04-11', '2026-05-12'])
+        ->avg('quantity_sold');
+
+    (new SeaDemoFeedTopUp(seed: 42))->run();
+
+    $postMean = SalesHistory::where('sku_id', $clean->id)
+        ->where('sale_date', '>', '2026-05-12')
+        ->avg('quantity_sold');
+
+    expect($preMean)->toBeGreaterThan(0);
+
+    $ratio = $postMean / $preMean;
+
+    expect($ratio)->toBeGreaterThan(0.6, "level dropped at the join (ratio {$ratio})")
+        ->and($ratio)->toBeLessThan(1.7, "level jumped at the join (ratio {$ratio})");
+});
+
+it('refuses to top up a pathology it has no rule for', function () {
+    // Adding a pathology to the catalogue must be a deliberate decision here.
+    // Several factory generators place features at fractions of their window,
+    // so an unclassified one would silently produce wrong data every night.
+    seedThenAdvance(60, '2026-05-13', '2026-06-14');
+
+    $catalog = require base_path('database/seeders/data/sea_sku_catalog.php');
+    $catalog['skus'][0]['pathology'] = 'some_future_pathology';
+
+    expect(fn () => (new SeaDemoFeedTopUp(seed: 42, catalog: $catalog))->run())
+        ->toThrow(RuntimeException::class, 'some_future_pathology');
+});
+
 it('is idempotent — a second run on the same day writes nothing', function () {
     seedThenAdvance(60, '2026-05-13', '2026-05-27');
 

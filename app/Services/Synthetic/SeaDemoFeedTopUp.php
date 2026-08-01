@@ -39,6 +39,51 @@ class SeaDemoFeedTopUp
     /** Pathologies whose SKUs must not be topped up. */
     private const FROZEN_PATHOLOGIES = ['stopped_selling'];
 
+    /**
+     * Pathologies generated as a different shape during top-up.
+     *
+     * `promo_spike` must not be generated as itself here. ShopifyOrderFactory's
+     * promo windows are three fixed 5-day blocks placed at 25/50/75% of
+     * whatever window it is given — a fixed *count*, not a density. Over the
+     * 913-day seed that is 15 of 913 days (1.6%). Over a 32-day top-up it is
+     * still 15 days (47%), and over a nightly 1-day top-up all three anchors
+     * collapse onto the single day (100%).
+     *
+     * The result is a recent tail where a large share of days carry a 3x
+     * spike — a structural break that seasonal models cannot fit, pushing
+     * candidate selection onto the baseline. Measured: it moved SARIMAX from
+     * 12 wins to 2 and doubled ets_fallback.
+     *
+     * Generating base demand instead is also the more faithful answer. The
+     * factory's promo days are an artefact of the seeded window, independent
+     * of the `promotions` table; uplift for real campaigns is applied
+     * separately by SeaPromotionCampaignGenerator. With no campaign scheduled
+     * in the topped-up period, flat base demand is what should occur.
+     */
+    private const TOPUP_SHAPE_OVERRIDES = [
+        'promo_spike'   => 'clean',
+        'stockout_gaps' => 'clean',
+        'new_sku'       => 'clean',
+    ];
+
+    /**
+     * Pathologies whose generators are per-day and therefore safe to run over
+     * any window length.
+     *
+     * Every pathology in the catalogue must appear in exactly one of
+     * WINDOW_SAFE, FROZEN_PATHOLOGIES, or TOPUP_SHAPE_OVERRIDES. An unhandled
+     * one throws rather than generating quietly wrong data — see
+     * assertPathologyHandled(). The promo_spike bug was silent, and a nightly
+     * job producing subtly wrong data is worse than one that stops.
+     *
+     * `stockout_gaps` and `new_sku` are overridden for the same reason as
+     * promo_spike: both place features at fractions of the window they are
+     * given. `stockout_gaps` zeroes two 10-14 day blocks at 30% and 70%, which
+     * over a short top-up window is most of it; `new_sku` zeroes everything
+     * before the last 30 days, which over a short window is nothing.
+     */
+    private const WINDOW_SAFE = ['clean', 'sparse', 'returns_heavy'];
+
     private readonly array $catalog;
     private readonly SeaDemandMultipliers $multipliers;
 
@@ -131,8 +176,12 @@ class SeaDemoFeedTopUp
                 continue;
             }
 
+            $this->assertPathologyHandled($spec['pathology'], $spec['sku_code']);
+
+            $shape = self::TOPUP_SHAPE_OVERRIDES[$spec['pathology']] ?? $spec['pathology'];
+
             $written = $this->generateRange(
-                $factory, $sku->id, $spec['pathology'], $spec['sku_code'],
+                $factory, $sku->id, $shape, $spec['sku_code'],
                 (int) $spec['base_level'], $start, $through, $now,
             );
 
@@ -148,6 +197,30 @@ class SeaDemoFeedTopUp
             'skus_missing'         => $missing,
             'rows_written'         => $rows,
         ];
+    }
+
+    /**
+     * Refuse to top up a pathology nobody has reasoned about.
+     *
+     * Several ShopifyOrderFactory generators place their features at fractions
+     * of the window they are handed, so they produce something quite different
+     * over a 30-day top-up than over the 913-day seed. Adding a new pathology
+     * to the catalogue must be a deliberate decision here, not a silent
+     * behaviour change in a nightly job.
+     */
+    private function assertPathologyHandled(string $pathology, string $skuCode): void
+    {
+        if (in_array($pathology, self::WINDOW_SAFE, true)
+            || array_key_exists($pathology, self::TOPUP_SHAPE_OVERRIDES)) {
+            return;
+        }
+
+        throw new \RuntimeException(
+            "SeaDemoFeedTopUp has no rule for pathology '{$pathology}' (SKU {$skuCode}). "
+            .'Classify it in WINDOW_SAFE, FROZEN_PATHOLOGIES, or TOPUP_SHAPE_OVERRIDES: '
+            .'generators that place features at fractions of the window produce '
+            .'wrong data over short top-up ranges.'
+        );
     }
 
     private function generateRange(

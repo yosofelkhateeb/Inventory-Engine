@@ -31,12 +31,30 @@ The project flows through three sequential phases. Everything in this file gates
 
 **Trigger:** before first external user uses the deployed system.
 
-**Current state:** failures are invisible to end users. Horizon failures show up in the Horizon dashboard (engineer-only). Python subprocess failures land in `storage/logs/laravel.log`. Queue backlogs are undetectable from the UI.
+> ### ⚠ Highest-priority item in this file: silent forecast failure
+>
+> **Observed in the demo on 2026-07-29, not hypothesised.** 27 of 30 SKUs had no forecast at all, and nothing anywhere said so.
+>
+> **The mechanism.** `RunForecastJob.php:135` sets the Python process timeout. `Process::timeout()` raises `ProcessTimedOutException` *before* control reaches the `if (! $result->successful())` block on line 141, so the structured `logger()->error(...)` in that block never runs. A timeout therefore produces **no log line, no `forecast_model_registry` row, and no marker on the SKU**. The only visible symptom is that the Reports page renders fewer rows than there are SKUs — which nobody notices, because there is no "expected 30, got 3" anywhere.
+>
+> **Why this is worse than an outage.** `DemandForecaster` falls back to a weighted moving average when the registry has no row for a SKU. So the system does not stop: it keeps producing `ORDER NOW` / `WATCH` / `HOLD` recommendations, with quantities, at full confidence, driven by a fallback demand rate instead of the selected model. The dashboard looks completely normal. A client can order stock for weeks against silently degraded forecasts and have no signal that anything is wrong — and no reason to distrust the number in front of them.
+>
+> A loud failure is recoverable. This one is not, because nobody knows to recover from it.
+>
+> **Minimum fix (small, do it first):**
+> - Catch `ProcessTimedOutException` explicitly in `RunForecastJob` and log it with SKU and tenant context, matching the existing non-zero-exit path
+> - Mark the SKU when all retries are exhausted, so the fallback is visible rather than assumed
+> - Distinguish "forecast from the selected model" from "forecast from the moving-average fallback" wherever a demand rate is shown — the SKU detail page, the Reports page, and the recommendation rows
+> - Surface a count: "N of M SKUs have no current model forecast" belongs on the Reports page and in the health indicator below
+>
+> **Related but separate:** the underlying slowness that triggers the timeouts is scoped in §9 and specced in [`plans/2026-07-31-forecast-performance-optimisation.md`](plans/2026-07-31-forecast-performance-optimisation.md). **Do not treat §9 as a substitute for this item.** Making the pipeline faster reduces how often timeouts happen; it does not make the failure visible when it does. Fix the visibility first — it is a few hours of work and it is what stops a client acting on bad numbers.
+
+**Current state:** failures are invisible to end users. Horizon failures show up in the Horizon dashboard (engineer-only). Python subprocess failures land in `storage/logs/laravel.log`. Queue backlogs are undetectable from the UI. Forecast *timeouts* do not even reach the log — see the boxed item above.
 
 **Scope when addressed:**
 - In-app system status indicator on the dashboard (green/amber/red) showing overall engine health: last engine run recency, forecasting queue depth, last successful forecast run
 - Horizon failure notification channel — route failed jobs to Slack/email for the engineering team (not the client)
-- Python subprocess failure surfacing — when `RunForecastJob` fails all 3 retries for an SKU, flag it on that SKU's detail page with "forecast stale, engineer attention required" rather than silently falling back to moving average
+- Python subprocess failure surfacing — when `RunForecastJob` fails all 3 retries for an SKU, flag it on that SKU's detail page with "forecast stale, engineer attention required" rather than silently falling back to moving average (**this is the boxed item above — it was written as a precaution and has since been confirmed to happen in practice**)
 - Degraded-mode banner when `forecasting` queue depth > threshold — informs the user that recommendations are still being produced but with fallback forecasting
 - Error boundary on the Inertia layer — graceful page for 500s instead of the default Laravel error page
 

@@ -193,8 +193,16 @@ never runs. A timeout currently produces: no log line, no registry row, no marke
 SKU. The Reports page just renders fewer rows.
 
 This is how 27 of 30 SKUs went missing without anyone noticing. Wrap the call, catch the
-timeout explicitly, log it with SKU context, and surface it (see
-`TODO_PRE_PRODUCTION.md` §1 Failure UX — the per-SKU "forecast stale" flag).
+timeout explicitly, log it with SKU context, and surface it.
+
+It matters more than it first looks: `DemandForecaster` falls back to a weighted moving
+average when the registry has no row, so the system keeps emitting recommendations with
+quantities at full confidence, driven by the fallback instead of the selected model. The
+dashboard looks normal. A client can order against silently degraded forecasts for weeks.
+
+**This item is tracked as the highest priority in `TODO_PRE_PRODUCTION.md` §1 and should be
+fixed independently of — and before — everything else in this plan.** Speeding the pipeline
+up reduces how often timeouts occur; it does not make them visible when they do.
 
 **D2 — raise the default.** 600s is below the observed requirement on modest hardware.
 After Fix A the realistic ceiling drops sharply, so **set this after A lands**, sized from

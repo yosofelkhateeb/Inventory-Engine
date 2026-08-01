@@ -22,9 +22,24 @@ computing and the stale-feed banner fires on every SKU.
 - Extracted `SeaDemandMultipliers` so the seeder and the top-up shape demand
   identically; divergence would put a structural break in the series at the
   join. 7 new tests.
-- Applied to the demo dataset: 28 SKUs topped up, 730 rows, 2 correctly frozen.
-  Stale-feed banner went from 30 SKUs to 4 (the 2 dead SKUs plus 2 legitimately
-  quiet sparse ones) and Portfolio WMAPE now computes at 30.3% instead of N/A.
+- `promo_spike`, `stockout_gaps` and `new_sku` SKUs generate base demand during
+  top-up. Those `ShopifyOrderFactory` generators place features at fractions of
+  whatever window they are handed, so they mean something quite different over a
+  short range: promo windows are three fixed 5-day blocks, which is 1.6% of the
+  913-day seed but 47% of a 32-day top-up and 100% of a nightly 1-day one. The
+  first implementation hit exactly this — the resulting spike-laden tail was a
+  structural break that pushed model selection onto the baseline, moving SARIMAX
+  from 12 wins to 2 and doubling `ets_fallback`. Caught by re-sweeping and
+  comparing the model mix.
+- Any catalogue pathology not explicitly classified as window-safe, frozen, or
+  shape-overridden now throws instead of generating quietly wrong data. A
+  nightly job producing subtly bad data is worse than one that stops.
+- Applied to the demo dataset: 28 SKUs topped up, 752 rows, 2 correctly frozen.
+  Demand level is continuous across the join for every pathology (ratios
+  0.95-1.02). Stale-feed banner went from 30 SKUs to 4 (the 2 dead SKUs plus 2
+  legitimately quiet sparse ones), and after re-forecasting on the current feed
+  Portfolio WMAPE computes at 15.7% instead of N/A, with per-SKU sMAPE mostly
+  in the 4-19% band where it had been 31-145%.
 
 **Forecast performance analysis (no pipeline code changed).** Documented in
 `docs/plans/2026-07-31-forecast-performance-optimisation.md`, with a pointer
