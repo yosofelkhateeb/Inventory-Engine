@@ -350,12 +350,24 @@ database/
 
 - [x] **Synthetic dataset milestone — 30-SKU SEA Shopify-shape demo** — replaced the 11-SKU / 1-year fixture with a 30-SKU South-East-Asia e-commerce dataset over a 913-day (~30-month) window. `SeaSeasonalCalendar` (SEA mega-sale days 9.9/10.10/11.11/12.12, CNY, Hari Raya Puasa/Haji, Songkran, BFCM, Christmas, monsoon dampening), `SeaPromotionCampaignGenerator` (~57 Brief-tagged promos, ≥30-day baseline-gap rule), `sea_sku_catalog.php` (5 suppliers 5–28d lead time, 30 SKUs across equipment/accessory/bundle with per-SKU pathology), `SeaDatasetSeeder` orchestrator wired into `SyntheticDataSeeder` + `RegionalHolidaySeeder` (2023–2026 holidays). End-to-end verification gate caught + fixed 3 latent production bugs (`MlLayer` hardcoded `python3`, `MIN_TRAINING_SAMPLES` PHP/Python mismatch, `SkuObserver` firing forecasts before sales history existed). Measured: seed ≈7.8s, forecast_demand avg ≈10.92. Retired `RetroactivePromotionTagSeeder` (superseded). 43 synthetic-dataset tests.
 
+- [x] **Portfolio publication (2026-07 → 2026-08)** — `docs/GLOSSARY.md` (36 terms, 1:1 with `useGlossary.ts`), `docs/SCREENSHOTS.md` (13 captioned shots), README heroes + gallery link. Full 30-SKU forecast sweep: the registry had held only 3/30 because the default `FORECAST_PROCESS_TIMEOUT` of 600s is below what modest hardware needs and the timeout path throws before the structured logging, so 27 SKUs failed silently. Fixed a date-bomb test in `SeaDatasetSeederTest` (broken since 2026-07-05, would never have passed again).
+
+- [x] **Demo feed top-up** — `demo:topup-sales` + `SeaDemoFeedTopUp` keep the synthetic feed current so a seeded dataset stops ageing a day per day. Anchors on the dataset frontier, not per-SKU last sale (which would backfill sparse SKUs' legitimate gaps). `stopped_selling` SKUs frozen; `promo_spike` / `stockout_gaps` / `new_sku` generate base demand, because those `ShopifyOrderFactory` generators place features at fractions of whatever window they get. Unclassified pathologies throw. Off by default via `DEMO_FEED_TOPUP_ENABLED`.
+
+- [x] **277 tests passing (2354 assertions)**
+
+### Current demo dataset numbers
+
+Portfolio WMAPE **15.7%** · stale-feed banner **4 SKUs** (2 dead + 2 legitimately quiet sparse) · per-SKU sMAPE mostly **4–19%** · winning models holt_winters 15 / sarimax 8 / ets_fallback 7 · 30 SKUs over 945 days · 62 campaigns.
+
 ### Remaining Scope
 
 _(All items complete. See Deferred section for pre-production work.)_
 
 ### Deferred (see `docs/TODO_PRE_PRODUCTION.md`)
 
+- **Silent forecast failure — highest priority.** A forecast timeout leaves no log line, no registry row, and no marker, and `DemandForecaster` falls back to a moving average, so the system keeps emitting confident recommendations instead of visibly breaking. See `TODO_PRE_PRODUCTION.md` §1 (boxed).
+- Forecast pipeline performance — SARIMAX is 50–80% of every run because `auto_arima` re-selects order on every CV fold. Analysed and specced in `docs/plans/2026-07-31-forecast-performance-optimisation.md`; no pipeline code changed.
 - Failure UX (in-app status indicator, degraded-mode banner)
 - Backup strategy (MySQL nightly, tested restore)
 - Scale testing (100/500/1000 SKU benchmarks)
